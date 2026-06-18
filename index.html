@@ -125,11 +125,34 @@
 <body>
 <div class="shell">
 
+  <!-- Hero -->
+  <div id="hero" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 20px;background:radial-gradient(ellipse at 50% 0%, rgba(110,64,245,.18) 0%, transparent 70%)">
+    <div style="width:80px;height:80px;border-radius:20px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:2.2rem;margin-bottom:28px;box-shadow:0 0 40px rgba(110,64,245,.4)">🛡️</div>
+    <div style="font-size:.8rem;font-weight:600;letter-spacing:3px;color:var(--accent2);text-transform:uppercase;margin-bottom:14px">Financial Crime Intelligence</div>
+    <h1 style="font-size:clamp(2rem,5vw,3.2rem);font-weight:800;line-height:1.15;margin-bottom:18px;background:linear-gradient(135deg,#fff 40%,var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent">SAR Narrative Generator</h1>
+    <p style="color:var(--muted);font-size:1.05rem;max-width:520px;line-height:1.7;margin-bottom:40px">
+      AI-powered Suspicious Activity Report system with built-in RAG regulatory knowledge base and full audit trail. Built for compliance officers handling AML investigations.
+    </p>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-bottom:56px">
+      <span style="background:rgba(110,64,245,.12);border:1px solid rgba(110,64,245,.25);color:var(--accent2);padding:6px 14px;border-radius:20px;font-size:.82rem">⚡ FastAPI Backend</span>
+      <span style="background:rgba(110,64,245,.12);border:1px solid rgba(110,64,245,.25);color:var(--accent2);padding:6px 14px;border-radius:20px;font-size:.82rem">📚 RAG Knowledge Base</span>
+      <span style="background:rgba(110,64,245,.12);border:1px solid rgba(110,64,245,.25);color:var(--accent2);padding:6px 14px;border-radius:20px;font-size:.82rem">🗄️ SQLite Audit Trail</span>
+      <span style="background:rgba(110,64,245,.12);border:1px solid rgba(110,64,245,.25);color:var(--accent2);padding:6px 14px;border-radius:20px;font-size:.82rem">📋 FinCEN Compliant</span>
+    </div>
+    <button class="btn btn-primary" style="width:auto;padding:14px 40px;font-size:1rem;border-radius:12px" onclick="enterApp()">Enter System →</button>
+  </div>
+
+  <!-- App (hidden until Enter) -->
+  <div id="app" class="hidden">
+
   <!-- Header -->
   <div class="header">
-    <div>
-      <h1>SAR Narrative Generator</h1>
-      <p>AI-Powered Suspicious Activity Report System with RAG &amp; Audit Trail</p>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:1.1rem">🛡️</div>
+      <div>
+        <h1>SAR Narrative Generator</h1>
+        <p>AI-Powered Suspicious Activity Report System with RAG &amp; Audit Trail</p>
+      </div>
     </div>
     <div class="status-dot"><div class="dot"></div> Active</div>
   </div>
@@ -160,7 +183,7 @@
         to pull the most relevant FinCEN regulatory guidance before drafting each narrative.
         All reports are stored in a persistent audit trail with timestamps.
         <br><br>
-        <strong style="color:var(--text)">Stack:</strong> FastAPI · SQLite · Anthropic Claude · RAG knowledge base · GitHub Pages
+        <strong style="color:var(--text)">Stack:</strong> FastAPI · SQLite · RAG Knowledge Base · GitHub Pages · Render
       </p>
     </div>
   </div>
@@ -286,6 +309,7 @@
     </div>
   </div>
 
+</div><!-- /app -->
 </div><!-- /shell -->
 
 <!-- SAR Detail Modal -->
@@ -527,8 +551,12 @@ function copyModalNarrative() {
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
-document.getElementById('t-date').valueAsDate = new Date();
-loadDashboard();
+function enterApp() {
+  document.getElementById('hero').style.display = 'none';
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('t-date').valueAsDate = new Date();
+  loadDashboard();
+}
 </script>
 </body>
 </html>
