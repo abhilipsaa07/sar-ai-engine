@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SAR Narrative Generator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d1117; --surface: #161b22; --surface2: #1e2530;
+      --border: #30363d; --accent: #6e40f5; --accent2: #9b6dff;
+      --green: #3fb950; --red: #f85149; --yellow: #d29922;
+      --text: #e6edf3; --muted: #8b949e; --font: 'Inter', system-ui, sans-serif;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+    a { color: var(--accent2); }
+
+    /* ── Layout ── */
+    .shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+    .header { display: flex; align-items: center; justify-content: space-between;
+              background: var(--surface); border: 1px solid var(--border);
+              border-radius: 12px; padding: 20px 28px; margin-bottom: 20px; }
+    .header h1 { font-size: 1.4rem; font-weight: 700; }
+    .header p { color: var(--muted); font-size: .85rem; margin-top: 2px; }
+    .status-dot { display: flex; align-items: center; gap: 8px; font-size: .85rem; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--green);
+           box-shadow: 0 0 6px var(--green); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+    /* ── Tabs ── */
+    .tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+    .tab { padding: 9px 18px; border-radius: 8px; border: 1px solid var(--border);
+           background: var(--surface); color: var(--muted); cursor: pointer;
+           font-size: .88rem; font-weight: 500; transition: all .15s; }
+    .tab:hover { color: var(--text); border-color: var(--accent2); }
+    .tab.active { background: var(--accent); border-color: var(--accent);
+                  color: #fff; box-shadow: 0 0 14px rgba(110,64,245,.35); }
+
+    /* ── Cards ── */
+    .card { background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+    .card h2 { font-size: 1.05rem; font-weight: 600; margin-bottom: 18px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media(max-width:600px){ .grid2{ grid-template-columns:1fr; } }
+
+    /* ── Form elements ── */
+    label { display: block; font-size: .82rem; color: var(--muted); margin-bottom: 5px; }
+    input, select, textarea {
+      width: 100%; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 12px; color: var(--text); font-size: .9rem;
+      outline: none; transition: border-color .15s;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent2); }
+    textarea { resize: vertical; min-height: 90px; }
+    select option { background: var(--surface2); }
+
+    /* ── Buttons ── */
+    .btn { width: 100%; padding: 13px; border-radius: 10px; border: none; cursor: pointer;
+           font-size: .95rem; font-weight: 600; transition: all .15s; }
+    .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent2));
+                   color: #fff; }
+    .btn-primary:hover { opacity: .9; transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+    .btn-sm { width: auto; padding: 6px 14px; font-size: .82rem; border-radius: 6px; }
+    .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+    .btn-ghost:hover { border-color: var(--accent2); color: var(--text); }
+    .btn-danger { background: transparent; border: 1px solid var(--red); color: var(--red); }
+    .btn-danger:hover { background: var(--red); color: #fff; }
+
+    /* ── Badge ── */
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 20px;
+             font-size: .75rem; font-weight: 600; }
+    .badge-low  { background: rgba(63,185,80,.15);  color: var(--green); }
+    .badge-med  { background: rgba(210,153,34,.15); color: var(--yellow); }
+    .badge-high { background: rgba(248,81,73,.15);  color: var(--red); }
+    .badge-draft    { background: rgba(139,148,158,.15); color: var(--muted); }
+    .badge-filed    { background: rgba(63,185,80,.15);   color: var(--green); }
+    .badge-reviewed { background: rgba(110,64,245,.15);  color: var(--accent2); }
+    .badge-verified { background: rgba(63,185,80,.15);  color: var(--green); }
+    .badge-pending  { background: rgba(210,153,34,.15); color: var(--yellow); }
+
+    /* ── Table ── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+    th { text-align: left; color: var(--muted); font-weight: 500; padding: 10px 12px;
+         border-bottom: 1px solid var(--border); }
+    td { padding: 11px 12px; border-bottom: 1px solid rgba(48,54,61,.5); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,.02); }
+
+    /* ── Dashboard stats ── */
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 20px; }
+    .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+            padding: 20px; text-align: center; }
+    .stat .val { font-size: 2rem; font-weight: 700; color: var(--accent2); }
+    .stat .lbl { font-size: .8rem; color: var(--muted); margin-top: 4px; }
+
+    /* ── SAR Narrative display ── */
+    .narrative-box { background: var(--surface2); border: 1px solid var(--border);
+                     border-radius: 10px; padding: 20px; white-space: pre-wrap;
+                     font-size: .88rem; line-height: 1.7; color: var(--text); }
+    .rag-badge { display: inline-flex; align-items: center; gap: 6px; font-size: .78rem;
+                 background: rgba(110,64,245,.12); border: 1px solid rgba(110,64,245,.25);
+                 color: var(--accent2); border-radius: 6px; padding: 4px 10px; margin-bottom: 12px; }
+
+    /* ── Spinner ── */
+    .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.3);
+               border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Toast ── */
+    #toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface);
+             border: 1px solid var(--border); border-radius: 10px; padding: 12px 18px;
+             font-size: .88rem; opacity: 0; transform: translateY(8px);
+             transition: all .25s; pointer-events: none; z-index: 999; }
+    #toast.show { opacity: 1; transform: translateY(0); }
+    #toast.err  { border-color: var(--red); color: var(--red); }
+    #toast.ok   { border-color: var(--green); color: var(--green); }
+
+    .hidden { display: none !important; }
+    .form-group { margin-bottom: 14px; }
+    .section-title { font-size: 1.05rem; font-weight: 600; margin-bottom: 16px; color: var(--text); }
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <h1>SAR Narrative Generator</h1>
+      <p>AI-Powered Suspicious Activity Report System with RAG &amp; Audit Trail</p>
+    </div>
+    <div class="status-dot"><div class="dot"></div> Active</div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('dashboard')">📊 Dashboard</button>
+    <button class="tab" onclick="switchTab('customers')">👤 Customer Data</button>
+    <button class="tab" onclick="switchTab('transactions')">💳 Transactions</button>
+    <button class="tab" onclick="switchTab('generate')">🤖 Generate SAR</button>
+    <button class="tab" onclick="switchTab('history')">📋 History</button>
+  </div>
+
+  <!-- ── DASHBOARD ── -->
+  <div id="tab-dashboard">
+    <div class="stats" id="stats-grid">
+      <div class="stat"><div class="val" id="s-customers">—</div><div class="lbl">Customers</div></div>
+      <div class="stat"><div class="val" id="s-txns">—</div><div class="lbl">Transactions</div></div>
+      <div class="stat"><div class="val" id="s-sars">—</div><div class="lbl">SARs Generated</div></div>
+      <div class="stat"><div class="val" id="s-highrisk">—</div><div class="lbl">High-Risk Customers</div></div>
+      <div class="stat"><div class="val" id="s-volume">—</div><div class="lbl">Total Volume (₹)</div></div>
+    </div>
+    <div class="card">
+      <h2>About This System</h2>
+      <p style="color:var(--muted);line-height:1.7;font-size:.9rem">
+        This tool assists compliance officers in generating FinCEN-compliant SAR narratives.
+        It uses <strong style="color:var(--accent2)">Retrieval-Augmented Generation (RAG)</strong>
+        to pull the most relevant FinCEN regulatory guidance before drafting each narrative.
+        All reports are stored in a persistent audit trail with timestamps.
+        <br><br>
+        <strong style="color:var(--text)">Stack:</strong> FastAPI · SQLite · Anthropic Claude · RAG knowledge base · GitHub Pages
+      </p>
+    </div>
+  </div>
+
+  <!-- ── CUSTOMERS ── -->
+  <div id="tab-customers" class="hidden">
+    <div class="card">
+      <h2>Add Customer</h2>
+      <div class="grid2">
+        <div class="form-group"><label>Customer ID</label><input id="c-id" placeholder="CUST001" /></div>
+        <div class="form-group"><label>Full Name</label><input id="c-name" placeholder="John Doe" /></div>
+        <div class="form-group"><label>Account Number</label><input id="c-acct" placeholder="ACC123456789" /></div>
+        <div class="form-group"><label>Date of Birth</label><input id="c-dob" type="date" /></div>
+        <div class="form-group"><label>Address</label><input id="c-addr" placeholder="123 Main St, City" /></div>
+        <div class="form-group"><label>Occupation</label><input id="c-occ" placeholder="Software Engineer" /></div>
+        <div class="form-group">
+          <label>Risk Level</label>
+          <select id="c-risk">
+            <option>Low</option><option>Medium</option><option>High</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>KYC Status</label>
+          <select id="c-kyc">
+            <option>Verified</option><option>Pending</option><option>Failed</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="addCustomer()">Add Customer</button>
+    </div>
+    <div class="card">
+      <h2>Customer List</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>Name</th><th>Account</th><th>Risk</th><th>KYC</th><th></th></tr></thead>
+          <tbody id="customer-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TRANSACTIONS ── -->
+  <div id="tab-transactions" class="hidden">
+    <div class="card">
+      <h2>Add Transaction</h2>
+      <div class="grid2">
+        <div class="form-group"><label>Transaction ID</label><input id="t-id" placeholder="TXN001" /></div>
+        <div class="form-group">
+          <label>Customer ID</label>
+          <select id="t-cust"><option value="">Select Customer</option></select>
+        </div>
+        <div class="form-group"><label>Amount (₹)</label><input id="t-amount" type="number" placeholder="50000" /></div>
+        <div class="form-group">
+          <label>Transaction Type</label>
+          <select id="t-type">
+            <option>Credit</option><option>Debit</option><option>Wire Transfer</option>
+            <option>Cash Deposit</option><option>Cash Withdrawal</option><option>International Transfer</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Date</label><input id="t-date" type="date" /></div>
+        <div class="form-group"><label>Source Account</label><input id="t-src" placeholder="ACC987654321" /></div>
+        <div class="form-group"><label>Destination</label><input id="t-dest" placeholder="Country / Account" /></div>
+        <div class="form-group"><label>Description</label><input id="t-desc" placeholder="Payment description" /></div>
+      </div>
+      <button class="btn btn-primary" onclick="addTransaction()">Add Transaction</button>
+    </div>
+    <div class="card">
+      <h2>Transaction History</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>Customer</th><th>Amount</th><th>Type</th><th>Date</th><th>Destination</th></tr></thead>
+          <tbody id="txn-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── GENERATE SAR ── -->
+  <div id="tab-generate" class="hidden">
+    <div class="card">
+      <h2>Generate SAR Narrative</h2>
+      <div class="form-group">
+        <label>Select Customer for SAR</label>
+        <select id="g-cust"><option value="">Select Customer</option></select>
+      </div>
+      <div class="form-group">
+        <label>Suspicious Activity Type</label>
+        <select id="g-activity">
+          <option>Money Laundering</option>
+          <option>Structuring / Smurfing</option>
+          <option>Wire Fraud</option>
+          <option>Trade-Based Money Laundering</option>
+          <option>Cyber-Enabled Financial Crime</option>
+          <option>Terrorist Financing</option>
+          <option>Insider Trading</option>
+          <option>Identity Theft</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Additional Context (Optional)</label>
+        <textarea id="g-context" placeholder="Any additional information for the compliance officer…"></textarea>
+      </div>
+      <button class="btn btn-primary" id="gen-btn" onclick="generateSAR()">🤖 Generate SAR Narrative</button>
+    </div>
+
+    <div class="card hidden" id="sar-result">
+      <h2>Generated SAR Narrative</h2>
+      <div class="rag-badge" id="rag-label">📚 RAG Source: —</div>
+      <div class="narrative-box" id="sar-text"></div>
+      <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-sm btn-ghost" onclick="copyNarrative()">Copy</button>
+        <button class="btn btn-sm btn-ghost" onclick="printNarrative()">Export PDF</button>
+        <button class="btn btn-sm btn-primary" onclick="switchTab('history')">View History</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── HISTORY ── -->
+  <div id="tab-history" class="hidden">
+    <div class="card">
+      <h2>Generated SAR History</h2>
+      <div id="sar-list"></div>
+    </div>
+  </div>
+
+</div><!-- /shell -->
+
+<!-- SAR Detail Modal -->
+<div id="modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;overflow-y:auto;padding:40px 16px">
+  <div style="max-width:720px;margin:0 auto;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px">
+      <div>
+        <div style="font-weight:700;font-size:1.1rem" id="modal-id"></div>
+        <div style="color:var(--muted);font-size:.85rem;margin-top:4px" id="modal-meta"></div>
+      </div>
+      <button class="btn btn-sm btn-ghost" onclick="closeModal()">✕ Close</button>
+    </div>
+    <div class="rag-badge" id="modal-rag"></div>
+    <div class="narrative-box" id="modal-narrative" style="margin-top:12px"></div>
+    <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
+      <select id="modal-status-sel" style="width:auto;padding:7px 12px">
+        <option>Draft</option><option>Reviewed</option><option>Filed</option>
+      </select>
+      <button class="btn btn-sm btn-primary" onclick="updateStatus()">Update Status</button>
+      <button class="btn btn-sm btn-ghost" onclick="copyModalNarrative()">Copy Narrative</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? 'http://localhost:8001'
+  : 'https://sar-ai-engine.onrender.com';
+
+let currentSarId = null;
+
+// ── Tab switching ────────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('hidden'));
+  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.remove('hidden');
+  const tabs = ['dashboard','customers','transactions','generate','history'];
+  document.querySelectorAll('.tab')[tabs.indexOf(name)].classList.add('active');
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'customers') loadCustomers();
+  if (name === 'transactions') loadTransactions();
+  if (name === 'generate' || name === 'transactions') loadCustomerDropdowns();
+  if (name === 'history') loadHistory();
+}
+
+// ── Toast ────────────────────────────────────────────────────────────────────
+function toast(msg, type = 'ok') {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.className = 'show ' + type;
+  setTimeout(() => el.className = '', 2500);
+}
+
+// ── Dashboard ────────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  try {
+    const d = await fetch(`${API}/api/dashboard`).then(r => r.json());
+    document.getElementById('s-customers').textContent = d.total_customers;
+    document.getElementById('s-txns').textContent = d.total_transactions;
+    document.getElementById('s-sars').textContent = d.total_sars;
+    document.getElementById('s-highrisk').textContent = d.high_risk_customers;
+    document.getElementById('s-volume').textContent = '₹' + Number(d.total_transaction_volume).toLocaleString('en-IN');
+  } catch { toast('Backend offline — run uvicorn locally', 'err'); }
+}
+
+// ── Customers ────────────────────────────────────────────────────────────────
+async function loadCustomers() {
+  const rows = await fetch(`${API}/api/customers`).then(r => r.json());
+  const tb = document.getElementById('customer-table');
+  tb.innerHTML = rows.map(c => `
+    <tr>
+      <td>${c.id}</td><td>${c.name}</td><td>${c.account_number}</td>
+      <td><span class="badge badge-${c.risk_level.toLowerCase()}">${c.risk_level}</span></td>
+      <td><span class="badge badge-${c.kyc_status.toLowerCase()}">${c.kyc_status}</span></td>
+      <td><button class="btn btn-sm btn-danger" onclick="deleteCustomer('${c.id}')">Delete</button></td>
+    </tr>`).join('') || '<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:20px">No customers yet</td></tr>';
+}
+
+async function addCustomer() {
+  const body = {
+    id: document.getElementById('c-id').value.trim(),
+    name: document.getElementById('c-name').value.trim(),
+    account_number: document.getElementById('c-acct').value.trim(),
+    dob: document.getElementById('c-dob').value,
+    address: document.getElementById('c-addr').value,
+    occupation: document.getElementById('c-occ').value,
+    risk_level: document.getElementById('c-risk').value,
+    kyc_status: document.getElementById('c-kyc').value,
+  };
+  if (!body.id || !body.name || !body.account_number) { toast('ID, Name and Account are required', 'err'); return; }
+  const r = await fetch(`${API}/api/customers`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (r.ok) { toast('Customer added'); loadCustomers(); loadCustomerDropdowns(); }
+  else { const e = await r.json(); toast(e.detail || 'Error', 'err'); }
+}
+
+async function deleteCustomer(id) {
+  await fetch(`${API}/api/customers/${id}`, { method: 'DELETE' });
+  toast('Customer removed'); loadCustomers(); loadCustomerDropdowns();
+}
+
+async function loadCustomerDropdowns() {
+  const customers = await fetch(`${API}/api/customers`).then(r => r.json());
+  const opts = customers.map(c => `<option value="${c.id}">${c.name} (${c.id})</option>`).join('');
+  ['t-cust','g-cust'].forEach(id => {
+    const el = document.getElementById(id);
+    el.innerHTML = '<option value="">Select Customer</option>' + opts;
+  });
+}
+
+// ── Transactions ─────────────────────────────────────────────────────────────
+async function loadTransactions() {
+  const rows = await fetch(`${API}/api/transactions`).then(r => r.json());
+  document.getElementById('txn-table').innerHTML = rows.map(t => `
+    <tr>
+      <td>${t.id}</td><td>${t.customer_name || t.customer_id}</td>
+      <td>₹${Number(t.amount).toLocaleString('en-IN')}</td>
+      <td>${t.transaction_type}</td><td>${t.date}</td>
+      <td>${t.destination || '—'}</td>
+    </tr>`).join('') || '<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:20px">No transactions yet</td></tr>';
+}
+
+async function addTransaction() {
+  const body = {
+    id: document.getElementById('t-id').value.trim(),
+    customer_id: document.getElementById('t-cust').value,
+    amount: parseFloat(document.getElementById('t-amount').value),
+    transaction_type: document.getElementById('t-type').value,
+    date: document.getElementById('t-date').value,
+    source_account: document.getElementById('t-src').value,
+    destination: document.getElementById('t-dest').value,
+    description: document.getElementById('t-desc').value,
+  };
+  if (!body.id || !body.customer_id || !body.amount || !body.date) { toast('Fill required fields', 'err'); return; }
+  const r = await fetch(`${API}/api/transactions`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (r.ok) { toast('Transaction added'); loadTransactions(); }
+  else { const e = await r.json(); toast(e.detail || 'Error', 'err'); }
+}
+
+// ── Generate SAR ─────────────────────────────────────────────────────────────
+async function generateSAR() {
+  const cust = document.getElementById('g-cust').value;
+  if (!cust) { toast('Select a customer first', 'err'); return; }
+  const btn = document.getElementById('gen-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Generating…';
+  document.getElementById('sar-result').classList.add('hidden');
+  try {
+    const body = {
+      customer_id: cust,
+      activity_type: document.getElementById('g-activity').value,
+      additional_context: document.getElementById('g-context').value,
+    };
+    const r = await fetch(`${API}/api/generate-sar`, {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+    });
+    if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Generation failed'); }
+    const data = await r.json();
+    document.getElementById('sar-text').textContent = data.narrative;
+    const ragTitle = data.rag_source.split('\n')[0].replace('[Regulatory Reference: ','').replace(']','');
+    document.getElementById('rag-label').textContent = '📚 RAG Source: ' + ragTitle;
+    document.getElementById('sar-result').classList.remove('hidden');
+    currentSarId = data.sar_id;
+    toast('SAR narrative generated');
+  } catch(e) { toast(e.message, 'err'); }
+  finally { btn.disabled = false; btn.innerHTML = '🤖 Generate SAR Narrative'; }
+}
+
+function copyNarrative() {
+  navigator.clipboard.writeText(document.getElementById('sar-text').textContent);
+  toast('Copied to clipboard');
+}
+
+function printNarrative() {
+  const w = window.open('', '_blank');
+  w.document.write(`<html><head><title>SAR Narrative</title><style>
+    body{font-family:Georgia,serif;padding:40px;max-width:700px;margin:0 auto;line-height:1.7}
+    h1{font-size:1.2rem;margin-bottom:8px}p{color:#444;font-size:.85rem;margin-bottom:20px}
+    pre{white-space:pre-wrap;font-family:inherit;font-size:.9rem}
+  </style></head><body>
+  <h1>Suspicious Activity Report Narrative</h1>
+  <p>Generated: ${new Date().toLocaleString()}</p>
+  <pre>${document.getElementById('sar-text').textContent}</pre>
+  </body></html>`);
+  w.print();
+}
+
+// ── History ──────────────────────────────────────────────────────────────────
+async function loadHistory() {
+  const reports = await fetch(`${API}/api/sar-reports`).then(r => r.json());
+  const container = document.getElementById('sar-list');
+  if (!reports.length) { container.innerHTML = '<p style="color:var(--muted)">No SARs generated yet.</p>'; return; }
+  container.innerHTML = reports.map(s => `
+    <div style="border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-weight:700">${s.id}</div>
+          <div style="color:var(--muted);font-size:.82rem;margin-top:3px">
+            Customer: ${s.customer_name} &nbsp;·&nbsp; Activity: ${s.activity_type}
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="badge badge-${s.status.toLowerCase()}">${s.status}</span>
+          <span style="color:var(--muted);font-size:.8rem">${new Date(s.created_at*1000).toLocaleString()}</span>
+        </div>
+      </div>
+      <div style="margin-top:12px">
+        <button class="btn btn-sm btn-primary" onclick="openModal('${s.id}')">View Details</button>
+      </div>
+    </div>`).join('');
+}
+
+async function openModal(id) {
+  const s = await fetch(`${API}/api/sar-reports/${id}`).then(r => r.json());
+  document.getElementById('modal-id').textContent = s.id;
+  document.getElementById('modal-meta').textContent =
+    `Customer: ${s.customer_name}  ·  Activity: ${s.activity_type}  ·  ${new Date(s.created_at*1000).toLocaleString()}`;
+  const ragTitle = s.rag_source ? s.rag_source.split('\n')[0].replace('[Regulatory Reference: ','').replace(']','') : '—';
+  document.getElementById('modal-rag').textContent = '📚 ' + ragTitle;
+  document.getElementById('modal-narrative').textContent = s.narrative;
+  document.getElementById('modal-status-sel').value = s.status;
+  currentSarId = id;
+  document.getElementById('modal-overlay').style.display = 'block';
+}
+
+function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
+
+async function updateStatus() {
+  const status = document.getElementById('modal-status-sel').value;
+  await fetch(`${API}/api/sar-reports/${currentSarId}/status`, {
+    method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({status})
+  });
+  toast('Status updated'); loadHistory();
+}
+
+function copyModalNarrative() {
+  navigator.clipboard.writeText(document.getElementById('modal-narrative').textContent);
+  toast('Copied');
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+document.getElementById('t-date').valueAsDate = new Date();
+loadDashboard();
+</script>
+</body>
+</html>
